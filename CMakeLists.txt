@@ -1,12 +1,13 @@
-# my_project/CMakeLists.txt
 cmake_minimum_required(VERSION 3.10)
 project(MyProject)
 
-# Указываем, что мы будем использовать CMake для подкаталога library
+set(CMAKE_MESSAGE_LOG_LEVEL VERBOSE)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 add_subdirectory(library)
 
-# Создание исполняемого файла
-add_executable(my_project src/main.cpp)
+add_executable(bulk src/main.cpp)
 
-# Подключение библиотеки к исполняемому файлу
-target_link_libraries(my_project PRIVATE async)
+target_link_libraries(bulk PRIVATE async)

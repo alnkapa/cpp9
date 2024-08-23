@@ -2,6 +2,8 @@
 #ifndef ASYNC_H
 #define ASYNC_H
 
-void async_function();
+void connect();
+void receive();
+void disconnect();
 
 #endif // ASYNC_H
