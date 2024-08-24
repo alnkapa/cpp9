@@ -29,16 +29,17 @@ bool testOverflow() {
     producers.emplace_back([&queue, i]() { queue.add(i); });
   }
 
-  for (auto &producer : producers) {
-    producer.join();
-  }
-
   for (int i = 0; i < 5; ++i) {
     int value = queue.take();
     if (value != i) {
       return false;
     }
   }
+  
+  for (auto &producer : producers) {
+    producer.join();
+  }
+
   return true;
 }
 

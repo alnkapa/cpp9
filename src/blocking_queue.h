@@ -15,7 +15,7 @@ private:
   std::condition_variable cv;
   std::mutex m;
 
-public:
+public:                                                                
   // Добавляет элемент в очередь, блокируя выполнение, если очередь переполнена
   explicit BlockingQueue(std::size_t size = 0) : m_size(size){};
   // Добавляет элемент в очередь, блокируя выполнение, если очередь переполнена
