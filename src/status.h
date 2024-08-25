@@ -7,181 +7,175 @@
 #include <tuple>
 #include <vector>
 
-using unix_time_stamp_t = long long;
-using print_t = std::pair<unix_time_stamp_t, std::vector<std::string>>;
-
-template <std::size_t N> class StatusSwitcher {
-  long long m_time_stamp{0};
-  std::string m_command{};
-  static std::vector<std::string> store{};
+class TimeStamp {
 public:
-  StatusSwitcher(){};
-  void run() {
-    while (std::getline(std::cin, m_command)) {
-      if (m_command.empty()) {
+  using value_type = long long;
+
+private:
+  value_type m_time_stamp{0};
+
+public:
+  TimeStamp(value_type in = 0) : m_time_stamp(in){};
+  void reset() { m_time_stamp = 0; };
+  void update() {
+    if (m_time_stamp == 0) {
+      m_time_stamp = std::chrono::duration_cast<std::chrono::seconds>(
+                         std::chrono::system_clock::now().time_since_epoch())
+                         .count();
+    }
+  }
+  operator value_type() { return m_time_stamp; };
+};
+
+using queue_value_type =
+    std::pair<TimeStamp::value_type, std::vector<std::string>>;
+
+const std::string OPEN{"{"};
+const std::string CLOSE{"}"};
+
+class StatusBlockPlus {
+private:
+  std::size_t N{3};
+  std::vector<std::string> m_store{};
+
+public:
+  StatusBlockPlus(std::size_t N) : N(N){};
+  ~StatusBlockPlus(){};
+  std::vector<std::string> run() {
+    std::string command{};
+    while (std::getline(std::cin, command)) {
+      if (command.empty()) {
         break;
       }
-      if (m_command == "{") {
-        m_time_stamp = 0;        
-      } else if (m_command == "}") {        
+      if (command == OPEN) {
+        for (auto &&v : StatusBlockPlus(N).run()) {
+          m_store.emplace_back(v);
+        };
+      } else if (command == CLOSE) {
+        break;
       } else {
-        if (m_time_stamp == 0) {
-          m_time_stamp =
-              std::chrono::duration_cast<std::chrono::seconds>(
-                  std::chrono::system_clock::now().time_since_epoch())
-                  .count();
+        m_store.emplace_back(std::move(command));
+        if (m_store.size() > N) {
+          m_store.clear();
         }
-        store.emplace_back(std::move(m_command));        
       }
     }
+    return m_store;
   }
 };
 
-template <std::size_t N> class StatusSwitcherBlock : public StatusSwitcher<N> {
-  void status() {
-    static std::vector<std::string> store{};
-    store.emplace_back(std::move(m_command));
-    if (store.size() > N) {
-      // TODO: print
-      ;
-      ;
-      store.clear();
+class StatusBlock {
+private:
+  std::size_t N{3};
+  std::size_t counter{0};
+  TimeStamp m_time_stamp{0};
+  std::vector<std::string> m_store{};
+  std::weak_ptr<BlockingQueue<queue_value_type>> m_queue;
+  std::unique_ptr<StatusBlockPlus> m_block;
+  void print() {
+    std::cout << "bulk: ";
+    auto it = m_store.begin();
+    while (it != m_store.end()) {
+      std::cout << *it;
+      if (++it != m_store.end()) {
+        std::cout << ", ";
+      }
     }
+    std::cout << std::endl;
+
+    // if (m_store.size()) {
+    //   if (auto ptr = m_queue.lock()) {
+    //     ptr->add({m_time_stamp, m_store});
+    //   }
+    // }
   };
-  void statusBlock() { static std::vector<std::string> store{}; };
-  void statusBlockPlus(){};
-  long long m_time_stamp{0};
-  int m_block_counter{0};
-  std::string m_command;
-  void (StatusSwitcher::*m_status)() = &StatusSwitcher::status;
 
 public:
-  StatusSwitcher(){};
+  StatusBlock(std::size_t N, std::weak_ptr<BlockingQueue<queue_value_type>> b)
+      : N(N), m_queue(b) {
+    m_block = std::make_unique<StatusBlockPlus>(N);
+  };
+  ~StatusBlock(){};
   void run() {
-    while (std::getline(std::cin, m_command)) {
-      if (m_command.empty()) {
+    std::string command{};
+    while (std::getline(std::cin, command)) {
+      if (command.empty()) {
         break;
       }
-      if (m_command == "{") {
-        m_time_stamp = 0;
-        if (m_block_counter == 0) {
-          m_status = &StatusSwitcher::statusBlock;
-        } else {
-          m_status = &StatusSwitcher::statusBlockPlus;
+      if (command == OPEN) {
+        m_time_stamp.reset();
+        for (auto &&v : m_block->run()) {
+          m_store.emplace_back(v);
         }
-        m_block_counter++;
-      } else if (m_command == "}" && m_block_counter > 0) {
-        m_block_counter--;
-        if (m_block_counter == 1) {
-          m_status = &StatusSwitcher::statusBlock;
-        } else {
-          m_status = &StatusSwitcher::statusBlockPlus;
-        }
+      } else if (command == CLOSE) {
+        print();
+        break;
       } else {
-        if (m_time_stamp == 0) {
-          m_time_stamp =
-              std::chrono::duration_cast<std::chrono::seconds>(
-                  std::chrono::system_clock::now().time_since_epoch())
-                  .count();
-        }
-        (this->*m_status)();
+        m_time_stamp.update();
+        m_store.emplace_back(std::move(command));
+        counter++;
+        if (counter > N) {
+          m_store.clear();
+          counter = 0;
+        };
       }
     }
   }
 };
 
-// class Status {
-// public:
-//   enum class BLOCK : int { OFF = 0, ON = 1, INNER = 2 };
-//   // using Publisher<print_t>::subscribe;
-//   // using Publisher<print_t>::unsubscribe;
+class Status {
 
-// private:
-//   std::vector<std::string> m_stack;
-//   long long m_time_stamp{0};
-//   std::weak_ptr<BlockingQueue<print_t>> m_queue_ptr;
-//   int m_n{3};
-//   int m_counter{0};
-//   BLOCK m_block_hierarchy{BLOCK::OFF};
-//   bool m_block_end{false};
-//   void print() {
-//     if (m_stack.size() > 0) {
-//       if (auto ptr = m_queue_ptr.lock()) {
-//         ptr->add({m_time_stamp, m_stack});
-//       }
-//     }
-//   };
+private:
+  std::size_t N{3};
+  TimeStamp m_time_stamp{0};
+  std::vector<std::string> m_store{};
+  std::weak_ptr<BlockingQueue<queue_value_type>> m_queue;
+  std::unique_ptr<StatusBlock> m_block;
+  void print() {
+    std::cout << "bulk: ";
+    auto it = m_store.begin();
+    while (it != m_store.end()) {
+      std::cout << *it;
+      if (++it != m_store.end()) {
+        std::cout << ", ";
+      }
+    }
+    std::cout << std::endl;
 
-//   void clear() {
-//     m_stack.clear();
-//     m_counter = 0;
-//     m_time_stamp = 0;
-//   };
+    // if (m_store.size()) {
+    //   if (auto ptr = m_queue.lock()) {
+    //     ptr->add({m_time_stamp, m_store});
+    //   }
+    // }
+  };
 
-// public:
-//   Status(int N, BLOCK block_status,
-//          std::weak_ptr<BlockingQueue<print_t>> queue_ptr)
-//       : m_n(N), m_block_hierarchy(block_status), m_queue_ptr(queue_ptr){};
-//   ~Status() {
-//     if (m_block_hierarchy == BLOCK::OFF) {
-//       print();
-//     }
-//     clear();
-//   };
-
-//   void reader() {
-//     std::string command;
-//     while (std::getline(std::cin, command)) {
-//       if (command.empty()) {
-//         break;
-//       }
-//       if (command == "{") {
-//         if (m_block_hierarchy == BLOCK::OFF) {
-//           print();
-//           clear();
-//         }
-//         // new block
-//         auto block_hierarchy = m_block_hierarchy;
-//         if (m_block_hierarchy < BLOCK::INNER) {
-//           block_hierarchy =
-//               static_cast<BLOCK>(static_cast<int>(m_block_hierarchy) + 1);
-//         }
-//         Status inner_reader(m_n, block_hierarchy);
-//         inner_reader.reader();
-//         if (m_block_hierarchy > BLOCK::OFF) {
-//           for (auto &&v : inner_reader.m_stack) {
-//             m_stack.emplace_back(std::move(v));
-//           }
-//         } else if (inner_reader.m_block_end) {
-//           inner_reader.print();
-//         }
-//         // call dtor
-//       } else if (command == "}") {
-//         m_block_end = true;
-//         // close block
-//         if (m_block_hierarchy != BLOCK::OFF) {
-//           return;
-//         }
-//       } else {
-//         if (m_time_stamp == 0) {
-//           m_time_stamp =
-//               std::chrono::duration_cast<std::chrono::seconds>(
-//                   std::chrono::system_clock::now().time_since_epoch())
-//                   .count();
-//         }
-//         // in block
-//         m_stack.emplace_back(std::move(command));
-//         m_counter++;
-//         if (m_block_hierarchy == BLOCK::OFF && m_counter == m_n) {
-//           print();
-//           clear();
-//         } else if (m_block_hierarchy > BLOCK::OFF && m_counter > m_n) {
-//           clear();
-//         }
-//       }
-//     }
-//     return;
-//   };
-// };
+public:
+  Status(std::size_t N, std::weak_ptr<BlockingQueue<queue_value_type>> b)
+      : N(N), m_queue(b) {
+    m_block = std::make_unique<StatusBlock>(N, b);
+  };
+  ~Status() { print(); };
+  void run() {
+    std::string command{};
+    while (std::getline(std::cin, command)) {
+      if (command.empty()) {
+        break;
+      }
+      if (command == OPEN) {
+        print();
+        m_store.clear();
+        m_time_stamp.reset();
+        m_block->run();
+      } else if (command != CLOSE) {
+        m_time_stamp.update();
+        m_store.emplace_back(std::move(command));
+        if (m_store.size() >= N) {
+          print();
+          m_store.clear();
+        }
+      }
+    }
+  }
+};
 
 #endif
