@@ -29,13 +29,22 @@ public:
 };
 
 class Value {
+public:
+  enum class Status { DATA, DONE };
+
 private:
   std::vector<std::string> m_vec;
+  Status m_status;
 
 public:
   Value(TimeStamp::value_type t_stamp, std::vector<std::string> &&vec)
-      : m_vec(std::move(vec)){};
-  Value(int){};
+      : m_vec(std::move(vec)) {
+    m_status = Status::DATA;
+  };
+  Value() { m_status = Status::DONE; };
+  Status status() { return m_status; };
+  bool data() { return m_status == Status::DATA; };
+  bool done() { return m_status == Status::DONE; };
   std::vector<std::string> vector() { return m_vec; };
 };
 
