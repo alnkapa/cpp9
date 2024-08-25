@@ -13,11 +13,11 @@ public:
   virtual id_type id() = 0;
 };
 
-std::unique_ptr<Context> connect(size_type N = 3);
+std::shared_ptr<Context> connect(size_type N = 3);
 
-void receive(std::weak_ptr<Context>, const char_type *, size_type *);
+void receive(std::weak_ptr<Context>, const char_type **, size_type *);
 
-void disconnect(std::unique_ptr<Context>);
+void disconnect(std::weak_ptr<Context>);
 
 } // namespace async
 

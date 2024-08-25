@@ -99,7 +99,7 @@ private:
   std::vector<std::string> m_store{};
   std::weak_ptr<BlockingQueue<Value>> m_queue;
   std::unique_ptr<StatusBlock> m_block;
-  std::unique_ptr<async::Context> m_ctx;
+  std::shared_ptr<async::Context> m_ctx;
   void print() {
     if (!m_store.empty()) {
       if (auto ptr = m_queue.lock()) {
@@ -116,7 +116,7 @@ public:
   };
   ~Status() {
     print();
-    async::disconnect(std::move(m_ctx));
+    async::disconnect(m_ctx);
   };
   void run();
 };

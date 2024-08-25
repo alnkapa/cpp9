@@ -62,12 +62,10 @@ void StatusBlock::run() {
 }
 
 void Status::run() {
-  async::char_type *ch;
-  async::size_type size;
-  auto sharedPtr = std::shared_ptr<async::Context>(std::move(m_ctx));
-  std::weak_ptr<async::Context> weakPtr(sharedPtr);
+  const async::char_type *ch = nullptr;
+  async::size_type size = 0;
   while (true) {
-    async::receive(weakPtr, ch, &size);
+    async::receive(m_ctx, &ch, &size);
     std::string command{ch, size};
     if (command.empty()) {
       break;
