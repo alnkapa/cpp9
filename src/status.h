@@ -1,5 +1,6 @@
 #ifndef STATUS_H
 #define STATUS_H
+#include "async.h"
 #include "blocking_queue.h"
 #include <chrono>
 #include <iostream>
@@ -62,31 +63,7 @@ private:
 public:
   StatusBlockPlus(std::size_t N) : N(N){};
   ~StatusBlockPlus(){};
-  std::vector<std::string> run() {
-    std::string command{};
-    while (std::getline(std::cin, command)) {
-      if (command.empty()) {
-        break;
-      }
-      if (command == OPEN) {
-        auto ptr = std::make_unique<StatusBlockPlus>(N);
-        auto vec = ptr->run();
-        for (auto &&v : vec) {
-          m_store.emplace_back(v);
-        };
-      } else if (command == CLOSE) {
-        break;
-      } else {
-        m_store.emplace_back(std::move(command));
-        counter++;
-        if (counter > N) {
-          m_store.clear();
-          counter = 0;
-        };
-      }
-    }
-    return m_store;
-  }
+  std::vector<std::string> run();
 };
 
 class StatusBlock {
@@ -111,31 +88,7 @@ public:
     m_block = std::make_unique<StatusBlockPlus>(N);
   };
   ~StatusBlock(){};
-  void run() {
-    std::string command{};
-    while (std::getline(std::cin, command)) {
-      if (command.empty()) {
-        break;
-      }
-      if (command == OPEN) {
-        m_time_stamp.reset();
-        for (auto &&v : m_block->run()) {
-          m_store.emplace_back(v);
-        }
-      } else if (command == CLOSE) {
-        print();
-        break;
-      } else {
-        m_time_stamp.update();
-        m_store.emplace_back(std::move(command));
-        counter++;
-        if (counter > N) {
-          m_store.clear();
-          counter = 0;
-        };
-      }
-    }
-  }
+  void run();
 };
 
 class Status {
@@ -146,6 +99,7 @@ private:
   std::vector<std::string> m_store{};
   std::weak_ptr<BlockingQueue<Value>> m_queue;
   std::unique_ptr<StatusBlock> m_block;
+  std::unique_ptr<async::Context> m_ctx;
   void print() {
     if (!m_store.empty()) {
       if (auto ptr = m_queue.lock()) {
@@ -158,29 +112,12 @@ public:
   Status(std::size_t N, std::weak_ptr<BlockingQueue<Value>> b)
       : N(N), m_queue(b) {
     m_block = std::make_unique<StatusBlock>(N, b);
+    m_ctx = async::connect(N);
   };
-  ~Status() { print(); };
-  void run() {
-    std::string command{};
-    while (std::getline(std::cin, command)) {
-      if (command.empty()) {
-        break;
-      }
-      if (command == OPEN) {
-        print();
-        m_store.clear();
-        m_time_stamp.reset();
-        m_block->run();
-      } else if (command != CLOSE) {
-        m_time_stamp.update();
-        m_store.emplace_back(std::move(command));
-        if (m_store.size() >= N) {
-          print();
-          m_store.clear();
-        }
-      }
-    }
-  }
+  ~Status() {
+    print();
+    async::disconnect(std::move(m_ctx));
+  };
+  void run();
 };
-
 #endif
