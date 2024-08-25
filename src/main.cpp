@@ -5,7 +5,27 @@
 #include <iostream>
 #include <thread>
 
-void log() {}
+// вывод на экран
+void log(std::weak_ptr<BlockingQueue<Value>> in_q,
+         std::weak_ptr<BlockingQueue<Value>> out_q) {
+  if (auto ptr_in = in_q.lock()) {
+    auto vec = ptr_in->take().vector();
+    if (!vec.empty()) {
+      std::cout << "bulk: ";
+      auto it = vec.begin();
+      while (it != vec.end()) {
+        std::cout << *it;
+        if (++it != vec.end()) {
+          std::cout << ", ";
+        }
+      }
+      std::cout << std::endl;
+    }
+    if (auto ptr = out_q.lock()) {
+      // ptr->add(vec);
+    }
+  }
+};
 void file1() {}
 void file2() {}
 
@@ -20,19 +40,18 @@ int main(int argc, char *argv[]) {
   // } catch (const std::exception &e) {
   //   std::cerr << "Usage: " << argv[0] << " N" << std::endl;
   // };
-  auto pipe = std::make_shared<BlockingQueue<queue_value_type>>();
+  auto pipe = std::make_shared<BlockingQueue<Value>>();
+  auto out = std::make_shared<BlockingQueue<Value>>();
+  std::thread logThread(&log, pipe, out);
   try {
     Status(N, pipe).run();
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;
   };
-  // std::thread logThread(log);
+  logThread.join();
   // std::thread file1Thread(file1);
   // std::thread file2Thread(file2);
-  // logThread.join();
   // file1Thread.join();
   // file2Thread.join();
-
-  // read.reader();
   return 0;
 }

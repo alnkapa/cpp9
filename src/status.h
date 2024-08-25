@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <tuple>
+#include <variant>
 #include <vector>
 
 class TimeStamp {
@@ -27,8 +28,16 @@ public:
   operator value_type() { return m_time_stamp; };
 };
 
-using queue_value_type =
-    std::pair<TimeStamp::value_type, std::vector<std::string>>;
+class Value {
+private:
+  std::vector<std::string> m_vec;
+
+public:
+  Value(TimeStamp::value_type t_stamp, std::vector<std::string> &&vec)
+      : m_vec(std::move(vec)){};
+  Value(int){};
+  std::vector<std::string> vector() { return m_vec; };
+};
 
 const std::string OPEN{"{"};
 const std::string CLOSE{"}"};
@@ -36,6 +45,7 @@ const std::string CLOSE{"}"};
 class StatusBlockPlus {
 private:
   std::size_t N{3};
+  std::size_t counter{0};
   std::vector<std::string> m_store{};
 
 public:
@@ -48,16 +58,20 @@ public:
         break;
       }
       if (command == OPEN) {
-        for (auto &&v : StatusBlockPlus(N).run()) {
+        auto ptr = std::make_unique<StatusBlockPlus>(N);
+        auto vec = ptr->run();
+        for (auto &&v : vec) {
           m_store.emplace_back(v);
         };
       } else if (command == CLOSE) {
         break;
       } else {
         m_store.emplace_back(std::move(command));
-        if (m_store.size() > N) {
+        counter++;
+        if (counter > N) {
           m_store.clear();
-        }
+          counter = 0;
+        };
       }
     }
     return m_store;
@@ -70,28 +84,18 @@ private:
   std::size_t counter{0};
   TimeStamp m_time_stamp{0};
   std::vector<std::string> m_store{};
-  std::weak_ptr<BlockingQueue<queue_value_type>> m_queue;
+  std::weak_ptr<BlockingQueue<Value>> m_queue;
   std::unique_ptr<StatusBlockPlus> m_block;
   void print() {
-    std::cout << "bulk: ";
-    auto it = m_store.begin();
-    while (it != m_store.end()) {
-      std::cout << *it;
-      if (++it != m_store.end()) {
-        std::cout << ", ";
+    if (!m_store.empty()) {
+      if (auto ptr = m_queue.lock()) {
+        ptr->add({m_time_stamp, std::move(m_store)});
       }
     }
-    std::cout << std::endl;
-
-    // if (m_store.size()) {
-    //   if (auto ptr = m_queue.lock()) {
-    //     ptr->add({m_time_stamp, m_store});
-    //   }
-    // }
   };
 
 public:
-  StatusBlock(std::size_t N, std::weak_ptr<BlockingQueue<queue_value_type>> b)
+  StatusBlock(std::size_t N, std::weak_ptr<BlockingQueue<Value>> b)
       : N(N), m_queue(b) {
     m_block = std::make_unique<StatusBlockPlus>(N);
   };
@@ -129,28 +133,18 @@ private:
   std::size_t N{3};
   TimeStamp m_time_stamp{0};
   std::vector<std::string> m_store{};
-  std::weak_ptr<BlockingQueue<queue_value_type>> m_queue;
+  std::weak_ptr<BlockingQueue<Value>> m_queue;
   std::unique_ptr<StatusBlock> m_block;
   void print() {
-    std::cout << "bulk: ";
-    auto it = m_store.begin();
-    while (it != m_store.end()) {
-      std::cout << *it;
-      if (++it != m_store.end()) {
-        std::cout << ", ";
+    if (!m_store.empty()) {
+      if (auto ptr = m_queue.lock()) {
+        ptr->add({m_time_stamp, std::move(m_store)});
       }
     }
-    std::cout << std::endl;
-
-    // if (m_store.size()) {
-    //   if (auto ptr = m_queue.lock()) {
-    //     ptr->add({m_time_stamp, m_store});
-    //   }
-    // }
   };
 
 public:
-  Status(std::size_t N, std::weak_ptr<BlockingQueue<queue_value_type>> b)
+  Status(std::size_t N, std::weak_ptr<BlockingQueue<Value>> b)
       : N(N), m_queue(b) {
     m_block = std::make_unique<StatusBlock>(N, b);
   };
