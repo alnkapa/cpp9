@@ -35,6 +35,7 @@ public:
 private:
   std::vector<std::string> m_vec;
   Status m_status;
+  TimeStamp::value_type m_time_stamp{};
 
 public:
   Value(TimeStamp::value_type t_stamp, std::vector<std::string> &&vec)
@@ -46,6 +47,7 @@ public:
   bool data() { return m_status == Status::DATA; };
   bool done() { return m_status == Status::DONE; };
   std::vector<std::string> vector() { return m_vec; };
+  TimeStamp::value_type time_stamp() { return m_time_stamp; };
 };
 
 const std::string OPEN{"{"};

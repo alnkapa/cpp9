@@ -2,6 +2,7 @@
 #include "async.h"
 #include "blocking_queue.h"
 #include "status.h"
+#include <fstream>
 #include <iostream>
 #include <thread>
 
@@ -43,15 +44,19 @@ void file1(std::weak_ptr<BlockingQueue<Value>> in_q) {
       if (val.data()) {
         auto vec = val.vector();
         if (!vec.empty()) {
-          std::cout << "bulk 1: ";
-          auto it = vec.begin();
-          while (it != vec.end()) {
-            std::cout << *it;
-            if (++it != vec.end()) {
-              std::cout << ", ";
+          std::ofstream file("bulk" + std::to_string(val.time_stamp()) +
+                             ".file1.log");
+          if (file.is_open()) {
+            file << "bulk: ";
+            auto it = vec.begin();
+            while (it != vec.end()) {
+              file << *it;
+              if (++it != vec.end()) {
+                file << ", ";
+              }
             }
+            file << std::endl;
           }
-          std::cout << std::endl;
         }
       } else if (val.done()) {
         return;
@@ -69,15 +74,19 @@ void file2(std::weak_ptr<BlockingQueue<Value>> in_q) {
       if (val.data()) {
         auto vec = val.vector();
         if (!vec.empty()) {
-          std::cout << "bulk 2: ";
-          auto it = vec.begin();
-          while (it != vec.end()) {
-            std::cout << *it;
-            if (++it != vec.end()) {
-              std::cout << ", ";
+          std::ofstream file("bulk" + std::to_string(val.time_stamp()) +
+                             ".file2.log");
+          if (file.is_open()) {
+            file << "bulk: ";
+            auto it = vec.begin();
+            while (it != vec.end()) {
+              file << *it;
+              if (++it != vec.end()) {
+                file << ", ";
+              }
             }
+            file << std::endl;
           }
-          std::cout << std::endl;
         }
       } else if (val.done()) {
         return;
@@ -89,16 +98,16 @@ void file2(std::weak_ptr<BlockingQueue<Value>> in_q) {
 }
 
 int main(int argc, char *argv[]) {
-  // if (argc != 2) {
-  //   std::cerr << "Usage: " << argv[0] << " N" << std::endl;
-  //   return 1;
-  // }
+  if (argc != 2) {
+    std::cerr << "Usage: " << argv[0] << " N" << std::endl;
+    return 1;
+  }
   std::size_t N = 3;
-  // try {
-  //   N = std::stoi(argv[1]);
-  // } catch (const std::exception &e) {
-  //   std::cerr << "Usage: " << argv[0] << " N" << std::endl;
-  // };
+  try {
+    N = std::stoi(argv[1]);
+  } catch (const std::exception &e) {
+    std::cerr << "Usage: " << argv[0] << " N" << std::endl;
+  };
   auto pipe = std::make_shared<BlockingQueue<Value>>();
   auto out = std::make_shared<BlockingQueue<Value>>();
   std::thread logThread(&log, pipe, out);
