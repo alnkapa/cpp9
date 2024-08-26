@@ -51,10 +51,7 @@ void StatusBlock::print()
 {
   if (!m_store.empty())
   {
-    if (auto ptr = m_queue.lock())
-    {
-      ptr->add({m_time_stamp, std::move(m_store)});
-    }
+    m_pub.notify({m_time_stamp, std::move(m_store)});
   }
 };
 
@@ -73,7 +70,7 @@ void StatusBlock::run()
     if (command == OPEN)
     {
       m_time_stamp.reset();
-      for (auto &&v : m_block->run())
+      for (auto &&v : StatusBlockPlus(N).run())
       {
         m_store.emplace_back(v);
       }
@@ -101,10 +98,7 @@ void Status::print()
 {
   if (!m_store.empty())
   {
-    if (auto ptr = m_queue.lock())
-    {
-      ptr->add({m_time_stamp, std::move(m_store)});
-    }
+    m_pub.notify({m_time_stamp, std::move(m_store)});
   }
 };
 
@@ -125,7 +119,7 @@ void Status::run()
       print();
       m_store.clear();
       m_time_stamp.reset();
-      m_block->run();
+      StatusBlock(N, m_pub).run();
     }
     else if (command != CLOSE)
     {

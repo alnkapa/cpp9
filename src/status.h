@@ -1,6 +1,7 @@
 #ifndef STATUS_H
 #define STATUS_H
 #include "async.h"
+#include "pub_sub.h"
 #include "blocking_queue.h"
 #include <chrono>
 #include <iostream>
@@ -63,75 +64,64 @@ public:
 const std::string OPEN{"{"};
 const std::string CLOSE{"}"};
 
-class StatusBlockPlus
+// Обертка для чтения из библиотеки
+struct InputWrapper
+{
+  std::shared_ptr<async::Context> m_ctx;
+  InputWrapper(std::size_t N)
+  {
+    m_ctx = async::connect(N);
+  };
+  ~InputWrapper()
+  {
+    async::disconnect(m_ctx);
+  };
+};
+
+class StatusBlockPlus : private InputWrapper
 {
 private:
   std::size_t N{3};
   std::size_t counter{0};
   std::vector<std::string> m_store{};
-  std::shared_ptr<async::Context> m_ctx;
 
 public:
-  StatusBlockPlus(std::size_t N) : N(N)
-  {
-    m_ctx = async::connect(N);
-  };
-  ~StatusBlockPlus()
-  {
-    async::disconnect(m_ctx);
+  StatusBlockPlus(std::size_t N) : N(N), InputWrapper(N) {};
+  ~StatusBlockPlus() {
   };
   std::vector<std::string> run();
 };
 
-class StatusBlock
+class StatusBlock : private InputWrapper
 {
 private:
   std::size_t N{3};
   std::size_t counter{0};
   TimeStamp m_time_stamp{0};
   std::vector<std::string> m_store{};
-  std::weak_ptr<BlockingQueue<Value>> m_queue;
-  std::unique_ptr<StatusBlockPlus> m_block;
-  std::shared_ptr<async::Context> m_ctx;
+  pubsub::Publisher<Value> m_pub;
   void print();
 
 public:
-  StatusBlock(std::size_t N, std::weak_ptr<BlockingQueue<Value>> b)
-      : N(N), m_queue(b)
-  {
-    m_block = std::make_unique<StatusBlockPlus>(N);
-    m_ctx = async::connect(N);
-  };
-  ~StatusBlock()
-  {
-    async::disconnect(m_ctx);
-  };
+  StatusBlock(std::size_t N, pubsub::Publisher<Value> pub) : N(N), m_pub(pub), InputWrapper(N) {};
+  ~StatusBlock() {};
   void run();
 };
 
-class Status
+class Status : private InputWrapper
 {
-
 private:
   std::size_t N{3};
   TimeStamp m_time_stamp{0};
   std::vector<std::string> m_store{};
-  std::weak_ptr<BlockingQueue<Value>> m_queue;
-  std::unique_ptr<StatusBlock> m_block;
-  std::shared_ptr<async::Context> m_ctx;
+  pubsub::Publisher<Value> m_pub;
   void print();
 
 public:
-  Status(std::size_t N, std::weak_ptr<BlockingQueue<Value>> b)
-      : N(N), m_queue(b)
-  {
-    m_block = std::make_unique<StatusBlock>(N, b);
-    m_ctx = async::connect(N);
-  };
+  Status(std::size_t N, pubsub::Publisher<Value> pub) : N(N), m_pub(pub), InputWrapper(N) {};
   ~Status()
   {
     print();
-    async::disconnect(m_ctx);
   };
   void run();
 };

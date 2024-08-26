@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
     auto out = std::make_shared<BlockingQueue<Value>>();
     std::thread logThread(&log, pipe, out);
     std::thread file1Thread(&file1, out, "file1");
-    std::thread file2Thread(&file1, out, "file2");
+    std::thread file2Thread(&file1, out, "file2");    
     try
     {
         Status(N, pipe).run();
