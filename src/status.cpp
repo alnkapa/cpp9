@@ -53,7 +53,7 @@ void StatusBlock::print()
   {
     m_pub.notify({m_time_stamp, std::move(m_store)});
   }
-};
+}
 
 void StatusBlock::run()
 {
@@ -100,7 +100,7 @@ void Status::print()
   {
     m_pub.notify({m_time_stamp, std::move(m_store)});
   }
-};
+}
 
 void Status::run()
 {

@@ -30,35 +30,13 @@ public:
                          .count();
     }
   }
-  operator value_type() { return m_time_stamp; };
+  std::string String() { return std::to_string(m_time_stamp); };
 };
 
-class Value
+struct Value
 {
-public:
-  enum class Status
-  {
-    DATA,
-    DONE
-  };
-
-private:
-  std::vector<std::string> m_vec;
-  Status m_status;
-  TimeStamp::value_type m_time_stamp{};
-
-public:
-  Value(TimeStamp::value_type t_stamp, std::vector<std::string> &&vec)
-      : m_vec(std::move(vec))
-  {
-    m_status = Status::DATA;
-  };
-  Value() { m_status = Status::DONE; };
-  Status status() { return m_status; };
-  bool data() { return m_status == Status::DATA; };
-  bool done() { return m_status == Status::DONE; };
-  std::vector<std::string> vector() { return m_vec; };
-  TimeStamp::value_type time_stamp() { return m_time_stamp; };
+  TimeStamp time_stamp;
+  std::vector<std::string> vector;
 };
 
 const std::string OPEN{"{"};

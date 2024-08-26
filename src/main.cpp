@@ -6,82 +6,73 @@
 #include <iostream>
 #include <thread>
 
+using BlockingQueueValue = BlockingQueue<Value>;
+
 // вывод на экран
-void log(std::weak_ptr<BlockingQueue<Value>> in_q,
-         std::weak_ptr<BlockingQueue<Value>> out_q)
+struct Sub : public pubsub::Subscriber<Value>
 {
-    while (true)
+    std::weak_ptr<BlockingQueueValue> log;
+    std::weak_ptr<BlockingQueueValue> file;
+    Sub(std::weak_ptr<BlockingQueueValue> log, std::weak_ptr<BlockingQueueValue> file) : log(log), file(file) {};
+    void callback(value_type &message) override
     {
-        if (auto ptr_in = in_q.lock())
+        if (auto ptr = log.lock())
         {
-            auto val = ptr_in->take(); // WAIT
-            if (auto ptr = out_q.lock())
-            {
-                ptr->add(val);
-            }
-            if (val.data())
-            {
-                auto vec = val.vector();
-                if (!vec.empty())
-                {
-                    std::cout << "bulk: ";
-                    auto it = vec.begin();
-                    while (it != vec.end())
-                    {
-                        std::cout << *it;
-                        if (++it != vec.end())
-                        {
-                            std::cout << ", ";
-                        }
-                    }
-                    std::cout << std::endl;
-                }
-            }
-            else if (val.done())
-            {
-                return;
-            }
+            ptr->add(message);
         }
-        else
+        if (auto ptr = file.lock())
         {
-            return;
+            ptr->add(message);
         }
     }
 };
-// вывод в файл
-void file1(std::weak_ptr<BlockingQueue<Value>> in_q, std::string prefix)
+
+// вывод на экран
+void log(std::weak_ptr<BlockingQueueValue> queue)
 {
     while (true)
     {
-        if (auto ptr_in = in_q.lock())
+        if (auto ptr = queue.lock())
         {
-            auto val = ptr_in->take(); // WAIT
-            if (val.data())
+            auto val = ptr->take(); // WAIT
+            std::cout << "bulk: ";
+            auto it = val.vector.begin();
+            while (it != val.vector.end())
             {
-                auto vec = val.vector();
-                if (!vec.empty())
+                std::cout << *it;
+                if (++it != val.vector.end())
                 {
-                    std::ofstream file("bulk" + std::to_string(val.time_stamp()) +
-                                       +"." + prefix + ".log");
-                    if (file.is_open())
-                    {
-                        file << "bulk: ";
-                        auto it = vec.begin();
-                        while (it != vec.end())
-                        {
-                            file << *it;
-                            if (++it != vec.end())
-                            {
-                                file << ", ";
-                            }
-                        }
-                        file << std::endl;
-                    }
+                    std::cout << ", ";
                 }
             }
-            else if (val.done())
+            std::cout << std::endl;
+        }
+    }
+};
+
+// вывод в файл
+void file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
+{
+    while (true)
+    {
+        if (auto ptr = queue.lock())
+        {
+            auto val = ptr->take(); // WAIT
+            std::ofstream file("bulk" + val.time_stamp.String() +
+                               +"." + prefix + ".log");
+            if (file.is_open())
             {
-                return;
+                file << "bulk: ";
+                auto it = val.vector.begin();
+                while (it != val.vector.end())
+                {
+                    file << *it;
+                    if (++it != val.vector.end())
+                    {
+                        file << ", ";
+                    }
+                }
+                file << std::endl;
             }
         }
         else
@@ -107,20 +98,21 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Usage: " << argv[0] << " N" << std::endl;
     };
-    auto pipe = std::make_shared<BlockingQueue<Value>>();
-    auto out = std::make_shared<BlockingQueue<Value>>();
-    std::thread logThread(&log, pipe, out);
-    std::thread file1Thread(&file1, out, "file1");
-    std::thread file2Thread(&file1, out, "file2");    
+    pubsub::Publisher<Value> pub;
+    auto log_queue = std::make_shared<BlockingQueue<Value>>();
+    auto file_queue = std::make_shared<BlockingQueue<Value>>();
+    pub.subscribe(std::make_shared<Sub>(log_queue, file_queue));
+    std::thread logThread(&log, log_queue);
+    std::thread file1Thread(&file, file_queue, "file1");
+    std::thread file2Thread(&file, file_queue, "file2");
     try
     {
-        Status(N, pipe).run();
+        Status(N, pub).run();
     }
     catch (const std::exception &e)
     {
         std::cerr << "Error: " << e.what() << std::endl;
     };
-    pipe->add({}); // send DONE
     logThread.join();
     file1Thread.join();
     file2Thread.join();
