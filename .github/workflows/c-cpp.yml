@@ -12,13 +12,16 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: true
-      - run: cd async
-      - run: cmake .
-      - run: cmake --build .
-      - run: cmake --build . --target package          
-      - run: cd ..
-      - run: cmake .
-      - run: cmake --build .
+      - name: Async
+        run: |
+          cd async
+          cmake .
+          cmake --build .
+          cmake --build . --target package
+      - name: Main
+        run: |
+          cmake .
+          cmake --build .
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
