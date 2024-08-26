@@ -51,7 +51,10 @@ void StatusBlock::print()
 {
   if (!m_store.empty())
   {
-    m_pub.notify({m_time_stamp, std::move(m_store)});
+    if (auto ptr = m_pub.lock())
+    {
+      ptr->notify({m_time_stamp, std::move(m_store)});
+    }
   }
 }
 
@@ -98,7 +101,10 @@ void Status::print()
 {
   if (!m_store.empty())
   {
-    m_pub.notify({m_time_stamp, std::move(m_store)});
+    if (auto ptr = m_pub.lock())
+    {
+      ptr->notify({m_time_stamp, std::move(m_store)});
+    }
   }
 }
 

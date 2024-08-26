@@ -12,7 +12,7 @@ namespace pubsub
     {
     public:
         using value_type = T;
-        virtual void callback(value_type &message) = 0;
+        virtual void callback(value_type message) = 0;
         virtual ~Subscriber() = default;
     };
 

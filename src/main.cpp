@@ -8,17 +8,18 @@
 
 using BlockingQueueValue = BlockingQueue<Value>;
 
-// вывод на экран
+// получение пачек
 struct Sub : public pubsub::Subscriber<Value>
 {
     std::weak_ptr<BlockingQueueValue> log;
     std::weak_ptr<BlockingQueueValue> file;
     Sub(std::weak_ptr<BlockingQueueValue> log, std::weak_ptr<BlockingQueueValue> file) : log(log), file(file) {};
-    void callback(value_type &message) override
+    void callback(value_type message) override
     {
         if (auto ptr = log.lock())
         {
-            ptr->add(message);
+            auto message1 = message; // COPY
+            ptr->add(message1);
         }
         if (auto ptr = file.lock())
         {
@@ -35,12 +36,17 @@ void log(std::weak_ptr<BlockingQueueValue> queue)
         if (auto ptr = queue.lock())
         {
             auto val = ptr->take(); // WAIT
+            if (val.done())
+            {
+                return;
+            }
             std::cout << "bulk: ";
-            auto it = val.vector.begin();
-            while (it != val.vector.end())
+            auto vec = val.vector();
+            auto it = vec.begin();
+            while (it != vec.end())
             {
                 std::cout << *it;
-                if (++it != val.vector.end())
+                if (++it != vec.end())
                 {
                     std::cout << ", ";
                 }
@@ -58,16 +64,22 @@ void file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
         if (auto ptr = queue.lock())
         {
             auto val = ptr->take(); // WAIT
-            std::ofstream file("bulk" + val.time_stamp.String() +
+            if (val.done())
+            {
+                return;
+            }
+            auto ts = val.time_stamp();
+            std::ofstream file("bulk" + ts.String() +
                                +"." + prefix + ".log");
             if (file.is_open())
             {
                 file << "bulk: ";
-                auto it = val.vector.begin();
-                while (it != val.vector.end())
+                auto vec = val.vector();
+                auto it = vec.begin();
+                while (it != vec.end())
                 {
                     file << *it;
-                    if (++it != val.vector.end())
+                    if (++it != vec.end())
                     {
                         file << ", ";
                     }
@@ -84,24 +96,25 @@ void file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2)
-    {
-        std::cerr << "Usage: " << argv[0] << " N" << std::endl;
-        return 1;
-    }
+    // if (argc != 2)
+    // {
+    //     std::cerr << "Usage: " << argv[0] << " N" << std::endl;
+    //     return 1;
+    // }
     std::size_t N = 3;
-    try
-    {
-        N = std::stoi(argv[1]);
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Usage: " << argv[0] << " N" << std::endl;
-    };
-    pubsub::Publisher<Value> pub;
-    auto log_queue = std::make_shared<BlockingQueue<Value>>();
-    auto file_queue = std::make_shared<BlockingQueue<Value>>();
-    pub.subscribe(std::make_shared<Sub>(log_queue, file_queue));
+    // try
+    // {
+    //     N = std::stoi(argv[1]);
+    // }
+    // catch (const std::exception &e)
+    // {
+    //     std::cerr << "Usage: " << argv[0] << " N" << std::endl;
+    // };
+    auto pub = std::make_shared<PublisherValue>();
+    auto log_queue = std::make_shared<BlockingQueueValue>();
+    auto file_queue = std::make_shared<BlockingQueueValue>();
+    auto sub = std::make_shared<Sub>(log_queue, file_queue);
+    pub->subscribe(sub);
     std::thread logThread(&log, log_queue);
     std::thread file1Thread(&file, file_queue, "file1");
     std::thread file2Thread(&file, file_queue, "file2");
@@ -113,6 +126,9 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Error: " << e.what() << std::endl;
     };
+    log_queue.get()->add({}); // EXIT FROM LOG
+    file_queue.get()->add({}); // EXIT FROM FILE
+    file_queue.get()->add({}); // EXIT FROM FILE
     logThread.join();
     file1Thread.join();
     file2Thread.join();

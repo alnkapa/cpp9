@@ -33,10 +33,33 @@ public:
   std::string String() { return std::to_string(m_time_stamp); };
 };
 
-struct Value
+class Value
 {
-  TimeStamp time_stamp;
-  std::vector<std::string> vector;
+private:
+  enum Status
+  {
+    DATA,
+    DONE,
+  };
+  Status m_status;
+  TimeStamp m_time_stamp;
+  std::vector<std::string> m_vector;
+
+public:
+  Value(TimeStamp time_stamp, std::vector<std::string> &&vector) : m_status(DATA), m_time_stamp(time_stamp), m_vector(std::move(vector)) {};
+  Value() : m_status(DONE) {};
+  const TimeStamp &time_stamp()
+  {
+    return m_time_stamp;
+  };
+  const std::vector<std::string> &vector()
+  {
+    return m_vector;
+  };
+  bool done()
+  {
+    return m_status == DONE;
+  }
 };
 
 const std::string OPEN{"{"};
@@ -55,6 +78,8 @@ struct InputWrapper
     async::disconnect(m_ctx);
   };
 };
+
+using PublisherValue = pubsub::Publisher<Value>;
 
 class StatusBlockPlus : private InputWrapper
 {
@@ -77,11 +102,11 @@ private:
   std::size_t counter{0};
   TimeStamp m_time_stamp{0};
   std::vector<std::string> m_store{};
-  pubsub::Publisher<Value> m_pub;
+  std::weak_ptr<PublisherValue> m_pub;
   void print();
 
 public:
-  StatusBlock(std::size_t N, pubsub::Publisher<Value> pub) : N(N), m_pub(pub), InputWrapper(N) {};
+  StatusBlock(std::size_t N, std::weak_ptr<PublisherValue> pub) : N(N), m_pub(pub), InputWrapper(N) {};
   ~StatusBlock() {};
   void run();
 };
@@ -92,11 +117,11 @@ private:
   std::size_t N{3};
   TimeStamp m_time_stamp{0};
   std::vector<std::string> m_store{};
-  pubsub::Publisher<Value> m_pub;
+  std::weak_ptr<PublisherValue> m_pub;
   void print();
 
 public:
-  Status(std::size_t N, pubsub::Publisher<Value> pub) : N(N), m_pub(pub), InputWrapper(N) {};
+  Status(std::size_t N, std::weak_ptr<PublisherValue> pub) : N(N), m_pub(pub), InputWrapper(N) {};
   ~Status()
   {
     print();
