@@ -18,6 +18,7 @@ jobs:
           cmake .
           cmake --build .
           cmake --build . --target package
+          sudo dpkg -i ./async-1.0.0-Linux.deb
       - name: Main
         run: |
           cmake .
