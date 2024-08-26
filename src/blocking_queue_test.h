@@ -35,7 +35,7 @@ bool testOverflow() {
       return false;
     }
   }
-  
+
   for (auto &producer : producers) {
     producer.join();
   }

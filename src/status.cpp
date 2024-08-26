@@ -8,37 +8,27 @@
 #include <variant>
 #include <vector>
 
-std::vector<std::string> StatusBlockPlus::run()
-{
+std::vector<std::string> StatusBlockPlus::run() {
   const async::char_type *ch = nullptr;
   async::size_type size = 0;
-  while (true)
-  {
+  while (true) {
     async::receive(m_ctx, &ch, &size);
     std::string command{ch, size};
-    if (command.empty())
-    {
+    if (command.empty()) {
       break;
     }
-    if (command == OPEN)
-    {
+    if (command == OPEN) {
       auto ptr = std::make_unique<StatusBlockPlus>(N);
       auto vec = ptr->run();
-      for (auto &&v : vec)
-      {
+      for (auto &&v : vec) {
         m_store.emplace_back(v);
       };
-    }
-    else if (command == CLOSE)
-    {
+    } else if (command == CLOSE) {
       break;
-    }
-    else
-    {
+    } else {
       m_store.emplace_back(std::move(command));
       counter++;
-      if (counter > N)
-      {
+      if (counter > N) {
         m_store.clear();
         counter = 0;
       };
@@ -47,49 +37,36 @@ std::vector<std::string> StatusBlockPlus::run()
   return m_store;
 }
 
-void StatusBlock::print()
-{
-  if (!m_store.empty())
-  {
-    if (auto ptr = m_pub.lock())
-    {
+void StatusBlock::print() {
+  if (!m_store.empty()) {
+    if (auto ptr = m_pub.lock()) {
       ptr->notify({m_time_stamp, std::move(m_store)});
     }
   }
 }
 
-void StatusBlock::run()
-{
+void StatusBlock::run() {
   const async::char_type *ch = nullptr;
   async::size_type size = 0;
-  while (true)
-  {
+  while (true) {
     async::receive(m_ctx, &ch, &size);
     std::string command{ch, size};
-    if (command.empty())
-    {
+    if (command.empty()) {
       break;
     }
-    if (command == OPEN)
-    {
+    if (command == OPEN) {
       m_time_stamp.reset();
-      for (auto &&v : StatusBlockPlus(N).run())
-      {
+      for (auto &&v : StatusBlockPlus(N).run()) {
         m_store.emplace_back(v);
       }
-    }
-    else if (command == CLOSE)
-    {
+    } else if (command == CLOSE) {
       print();
       break;
-    }
-    else
-    {
+    } else {
       m_time_stamp.update();
       m_store.emplace_back(std::move(command));
       counter++;
-      if (counter > N)
-      {
+      if (counter > N) {
         m_store.clear();
         counter = 0;
       };
@@ -97,42 +74,32 @@ void StatusBlock::run()
   }
 }
 
-void Status::print()
-{
-  if (!m_store.empty())
-  {
-    if (auto ptr = m_pub.lock())
-    {
+void Status::print() {
+  if (!m_store.empty()) {
+    if (auto ptr = m_pub.lock()) {
       ptr->notify({m_time_stamp, std::move(m_store)});
     }
   }
 }
 
-void Status::run()
-{
+void Status::run() {
   const async::char_type *ch = nullptr;
   async::size_type size = 0;
-  while (true)
-  {
+  while (true) {
     async::receive(m_ctx, &ch, &size);
     std::string command{ch, size};
-    if (command.empty())
-    {
+    if (command.empty()) {
       break;
     }
-    if (command == OPEN)
-    {
+    if (command == OPEN) {
       print();
       m_store.clear();
       m_time_stamp.reset();
       StatusBlock(N, m_pub).run();
-    }
-    else if (command != CLOSE)
-    {
+    } else if (command != CLOSE) {
       m_time_stamp.update();
       m_store.emplace_back(std::move(command));
-      if (m_store.size() >= N)
-      {
+      if (m_store.size() >= N) {
         print();
         m_store.clear();
       }
