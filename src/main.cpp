@@ -96,20 +96,20 @@ void file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
 
 int main(int argc, char *argv[])
 {
-    // if (argc != 2)
-    // {
-    //     std::cerr << "Usage: " << argv[0] << " N" << std::endl;
-    //     return 1;
-    // }
+    if (argc != 2)
+    {
+        std::cerr << "Usage: " << argv[0] << " N" << std::endl;
+        return 1;
+    }
     std::size_t N = 3;
-    // try
-    // {
-    //     N = std::stoi(argv[1]);
-    // }
-    // catch (const std::exception &e)
-    // {
-    //     std::cerr << "Usage: " << argv[0] << " N" << std::endl;
-    // };
+    try
+    {
+        N = std::stoi(argv[1]);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Usage: " << argv[0] << " N" << std::endl;
+    };
     auto pub = std::make_shared<PublisherValue>();
     auto log_queue = std::make_shared<BlockingQueueValue>();
     auto file_queue = std::make_shared<BlockingQueueValue>();
