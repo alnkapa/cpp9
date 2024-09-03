@@ -30,7 +30,7 @@ std::vector<std::string> StatusBlockPlus::run() {
       counter++;
       if (counter > N) {
         m_store.clear();
-        counter = 0;
+        // counter = 0;
       };
     }
   }
@@ -68,7 +68,7 @@ void StatusBlock::run() {
       counter++;
       if (counter > N) {
         m_store.clear();
-        counter = 0;
+        // counter = 0;
       };
     }
   }
