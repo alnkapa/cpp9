@@ -1,3 +1,4 @@
 **/build/*
 .vscode/*
 bulk0.file1.log
+.cache/*

@@ -96,7 +96,8 @@ int main(int argc, char *argv[]) {
   std::thread file1Thread(&file, file_queue, "file1");
   std::thread file2Thread(&file, file_queue, "file2");
   try {
-    Status(N, pub).run();
+    Status s(N, pub);
+    s.run();
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;
   };

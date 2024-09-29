@@ -1,6 +1,7 @@
 # library/CMakeLists.txt
 cmake_minimum_required(VERSION 3.10)
 project(async_library)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Создание библиотеки
 add_library(async SHARED async.cpp)

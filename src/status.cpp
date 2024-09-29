@@ -9,24 +9,21 @@
 #include <vector>
 
 std::vector<std::string> StatusBlockPlus::run() {
-  const async::char_type *ch = nullptr;
-  async::size_type size = 0;
   while (true) {
-    async::receive(m_ctx, &ch, &size);
-    std::string command{ch, size};
-    if (command.empty()) {
+    auto command_ptr = async::receive(m_ctx);
+    if (command_ptr->empty()) {
       break;
     }
-    if (command == OPEN) {
-      auto ptr = std::make_unique<StatusBlockPlus>(N);
+    if (*command_ptr == OPEN) {
+      auto ptr = std::make_unique<StatusBlockPlus>(N, m_ctx);
       auto vec = ptr->run();
       for (auto &&v : vec) {
         m_store.emplace_back(v);
       };
-    } else if (command == CLOSE) {
+    } else if (*command_ptr == CLOSE) {
       break;
     } else {
-      m_store.emplace_back(std::move(command));
+      m_store.emplace_back(std::move(*command_ptr));
       counter++;
       if (counter > N) {
         m_store.clear();
@@ -46,25 +43,22 @@ void StatusBlock::print() {
 }
 
 void StatusBlock::run() {
-  const async::char_type *ch = nullptr;
-  async::size_type size = 0;
   while (true) {
-    async::receive(m_ctx, &ch, &size);
-    std::string command{ch, size};
-    if (command.empty()) {
+    auto command_ptr = async::receive(m_ctx);
+    if (command_ptr->empty()) {
       break;
     }
-    if (command == OPEN) {
+    if (*command_ptr == OPEN) {
       m_time_stamp.reset();
-      for (auto &&v : StatusBlockPlus(N).run()) {
+      for (auto &&v : StatusBlockPlus(N, m_ctx).run()) {
         m_store.emplace_back(v);
       }
-    } else if (command == CLOSE) {
+    } else if (*command_ptr == CLOSE) {
       print();
       break;
     } else {
       m_time_stamp.update();
-      m_store.emplace_back(std::move(command));
+      m_store.emplace_back(std::move(*command_ptr));
       counter++;
       if (counter > N) {
         m_store.clear();
@@ -83,22 +77,19 @@ void Status::print() {
 }
 
 void Status::run() {
-  const async::char_type *ch = nullptr;
-  async::size_type size = 0;
   while (true) {
-    async::receive(m_ctx, &ch, &size);
-    std::string command{ch, size};
-    if (command.empty()) {
+    auto command_ptr = async::receive(m_ctx);
+    if (command_ptr->empty()) {
       break;
     }
-    if (command == OPEN) {
+    if (*command_ptr == OPEN) {
       print();
       m_store.clear();
       m_time_stamp.reset();
-      StatusBlock(N, m_pub).run();
-    } else if (command != CLOSE) {
+      StatusBlock(N, m_pub, m_ctx).run();
+    } else if (*command_ptr != CLOSE) {
       m_time_stamp.update();
-      m_store.emplace_back(std::move(command));
+      m_store.emplace_back(std::move(*command_ptr));
       if (m_store.size() >= N) {
         print();
         m_store.clear();
