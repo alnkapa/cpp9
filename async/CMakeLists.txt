@@ -4,7 +4,7 @@ project(async_library)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Создание библиотеки
-add_library(async SHARED async.cpp)
+add_library(async SHARED async.cpp run.cpp)
 
 # Указание директории с заголовочными файлами
 target_include_directories(async PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

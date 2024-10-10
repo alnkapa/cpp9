@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <list>
 #include <mutex>
-#include <type_traits>
 
 // Блокируемая очередь
 template <typename T> class BlockingQueue {

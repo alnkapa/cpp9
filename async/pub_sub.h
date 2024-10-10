@@ -15,7 +15,7 @@ public:
 
 template <typename T> class Publisher {
   using subscriber_type = Subscriber<T>;
-  using value_type = Subscriber<T>::value_type;
+  using value_type = typename Subscriber<T>::value_type;
   using subscriber_ptr_type = std::weak_ptr<subscriber_type>;
 
 public:

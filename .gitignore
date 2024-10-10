@@ -2,3 +2,5 @@
 .vscode/*
 bulk0.file1.log
 .cache/*
+async/.cache/*
+async/build/*
