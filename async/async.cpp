@@ -72,7 +72,7 @@ class Worker
     {
         while (m_running)
         {
-            auto val = m_queue.take();
+            auto val = m_queue.take(); // block here
             if (std::holds_alternative<std::string>(val))
             {
                 std::string message = std::get<std::string>(val);
