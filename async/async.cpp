@@ -1,15 +1,14 @@
 // library/async.cpp
 #include "async.h"
 #include "blocking_queue.h"
+#include "status.h"
 #include <atomic>
 #include <iostream>
 #include <memory>
 #include <mutex>
-#include <stdexcept>
 #include <string>
 #include <thread>
 #include <unordered_map>
-#include <utility>
 #include <variant>
 
 namespace async
@@ -21,6 +20,7 @@ class Worker
     struct Done
     {
     };
+    error_code m_error{error_ok};
     std::thread m_thread;
     size_type n;
     std::atomic<bool> m_running{false};
@@ -58,24 +58,33 @@ class Worker
         }
     }
 
-    void
+    error_code
     receive(const char_type *ptr, size_type size)
     {
         if (m_running)
         {
             m_queue.add(std::string{ptr, size});
         }
+        return m_error;
     }
 
     void
     proccess()
     {
+        auto pub = std::make_shared<PublisherValue>();
+        Status s(n, pub);
+
         while (m_running)
         {
             auto val = m_queue.take(); // block here
             if (std::holds_alternative<std::string>(val))
             {
                 std::string message = std::get<std::string>(val);
+                if (!message.empty())
+                {
+                    break;
+                }
+                s.run();
                 std::cout << "message" << message << "\n";
             }
             else
@@ -105,28 +114,32 @@ class Publisher
         w->run();
     }
 
-    void
+    error_code
     unsubscribe(context_type &ctx)
     {
         std::lock_guard lock(lo);
         auto it = m_subscribers.find(ctx);
         if (it == m_subscribers.end())
         {
-            throw std::runtime_error("Context not found");
+            return error_context_not_found;
         }
         m_subscribers.erase(it);
+        return error_ok;
     }
 
-    void
+    error_code
     notify(context_type &ctx, const char_type *ptr, size_type size)
     {
         std::lock_guard lock(lo);
         auto it = m_subscribers.find(ctx);
         if (it == m_subscribers.end())
         {
-            throw std::runtime_error("Context not found");
+            return error_context_not_found;
         }
-        it->second->receive(ptr, size);
+        else
+        {
+            return it->second->receive(ptr, size);
+        }
     }
 };
 
@@ -141,16 +154,16 @@ connect(size_type N)
     return ctx;
 }
 
-void
-receive(context_type &ctx, const char_type *ptr, size_type size)
+error_code
+receive(context_type &ctx, const char_type *ptr, size_type size) noexcept
 {
-    pub.notify(ctx, ptr, size);
+    return pub.notify(ctx, ptr, size);
 }
 
-void
-disconnect(context_type &ctx)
+error_code
+disconnect(context_type &ctx) noexcept
 {
-    pub.unsubscribe(ctx);
+    return pub.unsubscribe(ctx);
 }
 
 } // namespace async

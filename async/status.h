@@ -1,7 +1,6 @@
 #ifndef STATUS_H
 #define STATUS_H
 
-#include "async.h"
 #include "blocking_queue.h"
 #include "pub_sub.h"
 #include <chrono>
