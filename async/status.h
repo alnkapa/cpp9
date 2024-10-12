@@ -92,23 +92,30 @@ const int block_status = 1;
 const int block_plus_status = 2;
 
 using PublisherValue = pubsub::Publisher<Value>;
+using sub_type = pubsub::Publisher<std::vector<std::string>>;
 
 class StatusBlockPlus
 {
   private:
+    using stack_t = std::pair<std::vector<std::string>, std::size_t>;
     std::size_t N{3};
+    std::size_t m_level{0};
+    std::vector<std::string> m_store;
+    bool m_stop{false};
+    std::size_t m_stop_level{0};
     std::size_t m_counter{0};
-    std::vector<std::string> m_store{};
+    std::vector<stack_t> m_stack;
+    std::weak_ptr<sub_type> m_pub;
 
   public:
-    StatusBlockPlus(std::size_t N)
+    StatusBlockPlus(std::size_t N, std::weak_ptr<sub_type> pub)
         : N(N) {}
 
     int
     add(std::string &&);
 };
 
-class StatusBlock
+class StatusBlock : public pubsub::Subscriber<std::vector<std::string>>
 {
   private:
     std::size_t N{3};
@@ -120,11 +127,17 @@ class StatusBlock
     void
     print();
 
+    void
+    clear();
+
   public:
     StatusBlock(std::size_t N, std::weak_ptr<PublisherValue> pub)
-        : N(N), m_pub(pub) {}
+        : N(N), m_pub(pub){};
+    virtual ~StatusBlock(){};
     int
     add(std::string &&);
+    void
+    callback(std::vector<std::string>) override;
 };
 
 class Status

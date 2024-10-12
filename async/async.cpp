@@ -1,6 +1,7 @@
 // library/async.cpp
 #include "async.h"
 #include "blocking_queue.h"
+#include "pub_sub.h"
 #include "status.h"
 #include <algorithm>
 #include <atomic>
@@ -79,14 +80,16 @@ file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
     {
         if (auto ptr = queue.lock())
         {
-            auto val = ptr->take(); // WAIT            
+            auto val = ptr->take(); // WAIT
             if (val.done())
             {
                 break;
-            }            
+            }
             auto ts = val.time_stamp();
             std::ofstream file("bulk" + ts.String() + +"." + prefix + ".log");
-            std::cout << "open file " << "bulk" + ts.String() + +"." + prefix + ".log" << "\n";            
+            std::cout << "open file "
+                      << "bulk" + ts.String() + +"." + prefix + ".log"
+                      << "\n";
             if (file.is_open())
             {
                 file << "bulk: ";
@@ -104,7 +107,9 @@ file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
             }
             else
             {
-                std::cout << "error open file " << "bulk" + ts.String() + +"." + prefix + ".log" << "\n";
+                std::cout << "error open file "
+                          << "bulk" + ts.String() + +"." + prefix + ".log"
+                          << "\n";
             }
         }
         else
@@ -131,6 +136,7 @@ class Worker
     std::shared_ptr<BlockingQueueValue> log_queue;
     std::shared_ptr<BlockingQueueValue> file_queue;
     std::shared_ptr<PublisherValue> pub;
+    std::shared_ptr<sub_type> pub_block_plus;
     std::shared_ptr<Sub> sub;
     std::atomic<bool> m_running{false};
     BlockingQueue<std::variant<Done, std::string>> m_queue;
@@ -209,9 +215,9 @@ class Worker
     proccess()
     {
         Status no_block(n, pub);
-        StatusBlock block(n, pub);
-        StatusBlockPlus block_plus(n);
-
+        auto block  = std::make_shared<StatusBlock>(n, pub);
+        StatusBlockPlus block_plus(n, pub_block_plus);
+        pub_block_plus->subscribe(block);
         while (m_running)
         {
             auto val = m_queue.take(); // block here
@@ -232,7 +238,7 @@ class Worker
                 m_status_block = no_block.add(std::move(message));
                 break;
             case block_status: // block
-                m_status_block = block.add(std::move(message));
+                m_status_block = block->add(std::move(message));
                 break;
             case block_plus_status: // block ++
                 m_status_block = block_plus.add(std::move(message));
