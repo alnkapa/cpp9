@@ -14,6 +14,7 @@ using error_code = int;
 
 const error_code error_ok = 0;
 const error_code error_context_not_found = 1;
+const error_code error_main_proccess_exit = 2;
 
 context_type
 connect(size_type N = 3);

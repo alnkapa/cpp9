@@ -204,17 +204,19 @@ class Worker
         Status no_block(n, pub);
         StatusBlock block(n, pub);
         StatusBlockPlus block_plus(n);
-        
+
         while (m_running)
         {
             auto val = m_queue.take(); // block here
             if (!std::holds_alternative<std::string>(val))
             {
+                m_error = error_main_proccess_exit;
                 break;
             }
             std::string message = std::get<std::string>(val);
-            if (!message.empty())
+            if (message.empty())
             {
+                m_error = error_main_proccess_exit;
                 break;
             }
             switch (m_status_block)

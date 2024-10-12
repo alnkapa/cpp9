@@ -27,7 +27,12 @@ main(int argc, char *argv[])
         std::string command{};
         while (std::getline(std::cin, command))
         {
-            async::receive(*ptr, command.data(), command.size());
+            auto err = async::receive(*ptr, command.data(), command.size());
+            if (err != async::error_ok)
+            {
+                std::cout << "async error : " << err << "\n";
+                break;
+            }
         }
     }
     catch (const std::exception &err)
