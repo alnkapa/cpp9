@@ -52,7 +52,7 @@ log(std::weak_ptr<BlockingQueueValue> queue)
             auto val = ptr->take(); // WAIT
             if (val.done())
             {
-                return;
+                break;
             }
             std::cout << "bulk: ";
             auto vec = val.vector();
@@ -68,6 +68,7 @@ log(std::weak_ptr<BlockingQueueValue> queue)
             std::cout << std::endl;
         }
     }
+    std::cout << "exit log \n";
 };
 
 // вывод в файл
@@ -78,13 +79,14 @@ file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
     {
         if (auto ptr = queue.lock())
         {
-            auto val = ptr->take(); // WAIT
+            auto val = ptr->take(); // WAIT            
             if (val.done())
             {
-                return;
-            }
+                break;
+            }            
             auto ts = val.time_stamp();
             std::ofstream file("bulk" + ts.String() + +"." + prefix + ".log");
+            std::cout << "open file " << "bulk" + ts.String() + +"." + prefix + ".log" << "\n";            
             if (file.is_open())
             {
                 file << "bulk: ";
@@ -100,12 +102,17 @@ file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
                 }
                 file << std::endl;
             }
+            else
+            {
+                std::cout << "error open file " << "bulk" + ts.String() + +"." + prefix + ".log" << "\n";
+            }
         }
         else
         {
-            return;
+            break;
         }
     }
+    std::cout << "exit file " << prefix << "\n";
 }
 
 class Worker
@@ -233,6 +240,7 @@ class Worker
             }
         }
         m_running = false;
+        std::cout << "exit main \n";
     }
 };
 

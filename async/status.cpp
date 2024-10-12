@@ -64,6 +64,7 @@ StatusBlock::add(std::string &&command)
     else if (command == CLOSE)
     {
         print();
+        m_time_stamp.reset();
         return no_block_status;
     }
     else
@@ -109,6 +110,7 @@ Status::add(std::string &&command)
         {
             print();
             m_store.clear();
+            m_time_stamp.reset();
         }
     }
     return no_block_status;
