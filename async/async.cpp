@@ -2,7 +2,9 @@
 #include "async.h"
 #include "blocking_queue.h"
 #include "status.h"
+#include <algorithm>
 #include <atomic>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -14,6 +16,98 @@
 namespace async
 {
 
+using BlockingQueueValue = BlockingQueue<Value>;
+
+// получение пачек
+struct Sub : public pubsub::Subscriber<Value>
+{
+    std::weak_ptr<BlockingQueueValue> log;
+    std::weak_ptr<BlockingQueueValue> file;
+    Sub(std::weak_ptr<BlockingQueueValue> log,
+        std::weak_ptr<BlockingQueueValue> file)
+        : log(log), file(file){};
+    void
+    callback(value_type message) override
+    {
+        if (auto ptr = log.lock())
+        {
+            auto message1 = message; // COPY
+            ptr->add(message1);
+        }
+        if (auto ptr = file.lock())
+        {
+            ptr->add(message);
+        }
+    }
+};
+
+// вывод на экран
+void
+log(std::weak_ptr<BlockingQueueValue> queue)
+{
+    while (true)
+    {
+        if (auto ptr = queue.lock())
+        {
+            auto val = ptr->take(); // WAIT
+            if (val.done())
+            {
+                return;
+            }
+            std::cout << "bulk: ";
+            auto vec = val.vector();
+            auto it = vec.begin();
+            while (it != vec.end())
+            {
+                std::cout << *it;
+                if (++it != vec.end())
+                {
+                    std::cout << ", ";
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+};
+
+// вывод в файл
+void
+file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
+{
+    while (true)
+    {
+        if (auto ptr = queue.lock())
+        {
+            auto val = ptr->take(); // WAIT
+            if (val.done())
+            {
+                return;
+            }
+            auto ts = val.time_stamp();
+            std::ofstream file("bulk" + ts.String() + +"." + prefix + ".log");
+            if (file.is_open())
+            {
+                file << "bulk: ";
+                auto vec = val.vector();
+                auto it = vec.begin();
+                while (it != vec.end())
+                {
+                    file << *it;
+                    if (++it != vec.end())
+                    {
+                        file << ", ";
+                    }
+                }
+                file << std::endl;
+            }
+        }
+        else
+        {
+            return;
+        }
+    }
+}
+
 class Worker
 {
   private:
@@ -21,14 +115,29 @@ class Worker
     {
     };
     error_code m_error{error_ok};
-    std::thread m_thread;
-    size_type n;
+    std::thread m_main_thread;
+    std::thread m_log_thread;
+    std::thread m_file1_thread;
+    std::thread m_file2_thread;
+    size_type n{3};
+    int m_status_block{no_block_status};
+    std::shared_ptr<BlockingQueueValue> log_queue;
+    std::shared_ptr<BlockingQueueValue> file_queue;
+    std::shared_ptr<PublisherValue> pub;
+    std::shared_ptr<Sub> sub;
     std::atomic<bool> m_running{false};
     BlockingQueue<std::variant<Done, std::string>> m_queue;
 
   public:
     Worker(size_type N)
-        : n(N) {}
+        : n(N)
+    {
+        pub = std::make_shared<PublisherValue>();
+        log_queue = std::make_shared<BlockingQueueValue>();
+        file_queue = std::make_shared<BlockingQueueValue>();
+        sub = std::make_shared<Sub>(log_queue, file_queue);
+        pub->subscribe(sub);
+    }
 
     ~Worker()
     {
@@ -40,7 +149,10 @@ class Worker
     {
         if (!m_running.exchange(true)) // set true if false
         {
-            m_thread = std::thread(&Worker::proccess, this);
+            m_main_thread = std::thread(&Worker::proccess, this);
+            m_log_thread = std::thread(&log, log_queue);
+            m_file1_thread = std::thread(&file, file_queue, "file1");
+            m_file2_thread = std::thread(&file, file_queue, "file2");
         }
     }
 
@@ -49,12 +161,30 @@ class Worker
     {
         if (m_running.exchange(false)) // set false if true
         {
-            m_queue.add(Done{});
+            m_queue.add(Done{});       // EXIT FROM MAIN
+            log_queue.get()->add({});  // EXIT FROM LOG
+            file_queue.get()->add({}); // EXIT FROM FILE1
+            file_queue.get()->add({}); // EXIT FROM FILE2
         }
 
-        if (m_thread.joinable())
+        if (m_main_thread.joinable())
         {
-            m_thread.join();
+            m_main_thread.join();
+        }
+
+        if (m_log_thread.joinable())
+        {
+            m_log_thread.join();
+        }
+
+        if (m_file1_thread.joinable())
+        {
+            m_file1_thread.join();
+        }
+
+        if (m_file2_thread.joinable())
+        {
+            m_file2_thread.join();
         }
     }
 
@@ -71,24 +201,32 @@ class Worker
     void
     proccess()
     {
-        auto pub = std::make_shared<PublisherValue>();
-        Status s(n, pub);
-
+        Status no_block(n, pub);
+        StatusBlock block(n, pub);
+        StatusBlockPlus block_plus(n);
+        
         while (m_running)
         {
             auto val = m_queue.take(); // block here
-            if (std::holds_alternative<std::string>(val))
+            if (!std::holds_alternative<std::string>(val))
             {
-                std::string message = std::get<std::string>(val);
-                if (!message.empty())
-                {
-                    break;
-                }
-                s.run();
-                std::cout << "message" << message << "\n";
+                break;
             }
-            else
+            std::string message = std::get<std::string>(val);
+            if (!message.empty())
             {
+                break;
+            }
+            switch (m_status_block)
+            {
+            default: // no block
+                m_status_block = no_block.add(std::move(message));
+                break;
+            case block_status: // block
+                m_status_block = block.add(std::move(message));
+                break;
+            case block_plus_status: // block ++
+                m_status_block = block_plus.add(std::move(message));
                 break;
             }
         }
