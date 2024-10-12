@@ -56,10 +56,7 @@ StatusBlockPlus::add(std::string &&line)
             {
                 if (!m_store.empty())
                 {
-                    if (auto ptr = m_pub.lock())
-                    {
-                        ptr->notify(std::move(m_store));
-                    }
+                    notify(std::move(m_store));
                 }
                 m_store.clear();
                 m_counter = 0;

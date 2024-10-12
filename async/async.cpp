@@ -87,9 +87,6 @@ file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
             }
             auto ts = val.time_stamp();
             std::ofstream file("bulk" + ts.String() + +"." + prefix + ".log");
-            std::cout << "open file "
-                      << "bulk" + ts.String() + +"." + prefix + ".log"
-                      << "\n";
             if (file.is_open())
             {
                 file << "bulk: ";
@@ -105,19 +102,12 @@ file(std::weak_ptr<BlockingQueueValue> queue, std::string prefix)
                 }
                 file << std::endl;
             }
-            else
-            {
-                std::cout << "error open file "
-                          << "bulk" + ts.String() + +"." + prefix + ".log"
-                          << "\n";
-            }
         }
         else
         {
             break;
         }
     }
-    std::cout << "exit file " << prefix << "\n";
 }
 
 class Worker
@@ -136,7 +126,6 @@ class Worker
     std::shared_ptr<BlockingQueueValue> log_queue;
     std::shared_ptr<BlockingQueueValue> file_queue;
     std::shared_ptr<PublisherValue> pub;
-    std::shared_ptr<sub_type> pub_block_plus;
     std::shared_ptr<Sub> sub;
     std::atomic<bool> m_running{false};
     BlockingQueue<std::variant<Done, std::string>> m_queue;
@@ -215,9 +204,9 @@ class Worker
     proccess()
     {
         Status no_block(n, pub);
-        auto block  = std::make_shared<StatusBlock>(n, pub);
-        StatusBlockPlus block_plus(n, pub_block_plus);
-        pub_block_plus->subscribe(block);
+        auto block_plus = std::make_shared<StatusBlockPlus>(n);
+        auto block = std::make_shared<StatusBlock>(n, pub);
+        block_plus->subscribe(block);
         while (m_running)
         {
             auto val = m_queue.take(); // block here
@@ -241,7 +230,7 @@ class Worker
                 m_status_block = block->add(std::move(message));
                 break;
             case block_plus_status: // block ++
-                m_status_block = block_plus.add(std::move(message));
+                m_status_block = block_plus->add(std::move(message));
                 break;
             }
         }
